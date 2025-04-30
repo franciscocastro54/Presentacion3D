@@ -1,0 +1,151 @@
+<!--
+  Proyecto: threejs-glb-viewer v10
+  Descripción: Visualiza un modelo GLB preestablecido, usa CSS para un fondo responsivo y añade un botón 3D interactivo con imagen PNG y transparencia que despliega/oculta información al pulsarse.
+
+  Instrucciones:
+    1. Coloca tu archivo GLB en `models/modelo4.glb`.
+    2. Coloca tu imagen de fondo en `images/background.png`.
+    3. Coloca tu PNG de botón en `images/button.png`.
+    4. Sirve los archivos en un servidor local:
+         python -m http.server
+    5. Abre http://localhost:8000 en tu navegador.
+    6. Pulsa sobre el botón 3D para togglear la información.
+-->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Three.js GLB Viewer con Botón PNG Transparente</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      /* Fondo responsive sin deformación */
+      background: url('images/background.png') center center no-repeat;
+      background-size: cover;
+      font-family: Arial, Helvetica, sans-serif;
+    }
+    canvas { display: block; }
+    #infoBox {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 15px;
+      background: rgba(255,255,255,0.7);
+      border-radius: 4px;
+      display: none;
+      max-width: 300px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+  </style>
+  <!-- Import map para resolver módulos bare specifiers -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.152.0/build/three.module.js",
+      "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.152.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="infoBox"></div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+    import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+
+    // 1. Escena y cámara
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth/window.innerHeight, 0.5, 1000);
+    camera.position.set(-2, 1, 2);
+
+    // 2. Renderer transparente para fondo CSS
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio || 1);
+    renderer.setClearColor(0x000000, 0);
+    document.body.appendChild(renderer.domElement);
+
+    // 3. Iluminación
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.7);
+    dirLight.position.set(5, 10, 7.5);
+    scene.add(dirLight);
+
+    // 4. Controles orbitales
+    const controls = new OrbitControls(camera, renderer.domElement);
+
+    // 5. Carga y centrado del modelo GLB
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.load('models/modelo4.glb',
+      (gltf) => {
+        const box = new THREE.Box3().setFromObject(gltf.scene);
+        gltf.scene.position.sub(box.getCenter(new THREE.Vector3()));
+        scene.add(gltf.scene);
+      },
+      (xhr) => console.log(`Cargando GLB: ${(xhr.loaded/(xhr.total||1)*100).toFixed(1)}%`),
+      (err) => console.error('Error al cargar GLB:', err)
+    );
+
+    // 6. Crear botón 3D con imagen PNG y transparencia
+    const btnTexture = new THREE.TextureLoader().load(
+      'images/button.png',
+      () => console.log('Botón PNG cargado'),
+      undefined,
+      (err) => console.error('Error al cargar botón PNG:', err)
+    );
+    btnTexture.minFilter = THREE.LinearFilter;
+    btnTexture.magFilter = THREE.LinearFilter;
+    const btnMaterial = new THREE.MeshBasicMaterial({
+      map: btnTexture,
+      transparent: true,
+      opacity: 0.7
+    });
+    const aspect = btnTexture.image ? btnTexture.image.height / btnTexture.image.width : 1;
+    const btnGeometry = new THREE.PlaneGeometry(0.2, 0.1 * aspect);
+    const btnMesh = new THREE.Mesh(btnGeometry, btnMaterial);
+    btnMesh.position.set(0, 0.3, 0.8);
+    scene.add(btnMesh);
+
+    // 7. Raycaster para interacción con toggle de información
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+    const infoBox = document.getElementById('infoBox');
+    const infoText = 'Soy Francisco Castro Zuleta, desarrollador de software con más de dos años de experiencia en el diseño e implementación de experiencias educativas inmersivas en Realidad Virtual. Utilizo Unity junto a SDKs como Meta XR, OpenXR y MRTK, integrando hardware y físicas avanzadas en C#. Enseño desarrollo VR en la UDD y la Academia Politécnica Militar, innovando en métodos de enseñanza.';
+
+    function onClick(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObject(btnMesh);
+      if (intersects.length > 0) {
+        if (infoBox.style.display === 'block') {
+          infoBox.style.display = 'none';
+        } else {
+          infoBox.innerText = infoText;
+          infoBox.style.display = 'block';
+        }
+      }
+    }
+    window.addEventListener('click', onClick);
+
+    // 8. Ajuste al redimensionar
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio || 1);
+    });
+
+    // 9. Bucle de animación
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+  </script>
+</body>
+</html>
