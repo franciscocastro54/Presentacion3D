@@ -111,7 +111,7 @@
     const aspect = btnTexture.image ? btnTexture.image.height / btnTexture.image.width : 1;
     const btnGeometry = new THREE.PlaneGeometry(0.2, 0.1 * aspect);
     const btnMesh = new THREE.Mesh(btnGeometry, btnMaterial);
-    btnMesh.position.set(0.3, 0.65, 0);
+    btnMesh.position.set(0.65, 0.2, 0.5);
     scene.add(btnMesh);
 
     // 7. Raycaster para interacción con toggle de información
